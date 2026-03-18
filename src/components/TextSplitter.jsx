@@ -46,10 +46,45 @@ export default function TextSplitter() {
     });
   };
 
+  const fileInputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+
   const handleClear = () => {
     setText('');
+    setFileName('split_text');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     textareaRef.current?.focus();
   };
+
+  const readFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setText(e.target.result);
+      // Use the file name (without extension) as the default prefix
+      const name = file.name.replace(/\.[^.]+$/, '');
+      if (name) setFileName(name);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = () => setDragging(false);
 
   return (
     <div className="space-y-4">
@@ -65,14 +100,41 @@ export default function TextSplitter() {
         />
       </div>
 
+      {/* File upload */}
+      <div>
+        <label className="text-xs text-gray-500 block mb-1">Upload a file or paste text below</label>
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded p-4 text-center cursor-pointer transition-colors ${
+            dragging
+              ? 'border-[#e0ddaa] bg-[#e0ddaa]/10'
+              : 'border-gray-700 hover:border-gray-500'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.csv,.json,.xml,.html,.log,.srt,.vtt,.ass"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <p className="text-sm text-gray-400">
+            Drop a file here or <span className="text-[#e0ddaa]">click to browse</span>
+          </p>
+          <p className="text-xs text-gray-600 mt-1">.txt, .md, .csv, .json, .xml, .html, .log, .srt, .vtt, .ass</p>
+        </div>
+      </div>
+
       {/* Text area */}
       <div>
-        <label className="text-xs text-gray-500 block mb-1">Paste your text below</label>
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Paste or type text here..."
+          placeholder="Or paste / type text here..."
           className="w-full h-96 bg-[#1a1f2e] border border-gray-700 rounded px-3 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#e0ddaa] resize-y font-mono leading-relaxed"
         />
       </div>
