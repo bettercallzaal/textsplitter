@@ -44,8 +44,11 @@ export default function TextSplitter() {
     const a = document.createElement('a');
     a.href = dlUrl;
     a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(dlUrl);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(dlUrl), 1000);
   };
 
   const handleDownloadPart = (index) => {
