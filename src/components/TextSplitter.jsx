@@ -28,21 +28,39 @@ export default function TextSplitter() {
     return chunks;
   };
 
-  const handleDownload = () => {
+  const getSafeName = () =>
+    fileName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'split_text';
+
+  const getPartFileName = (total, index) => {
+    const safeName = getSafeName();
+    return total === 1
+      ? `${safeName}.txt`
+      : `${safeName}_part${index + 1}_of_${total}.txt`;
+  };
+
+  const downloadBlob = (content, name) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const dlUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = dlUrl;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(dlUrl);
+  };
+
+  const handleDownloadPart = (index) => {
+    const chunks = buildChunks();
+    if (!chunks[index]) return;
+    downloadBlob(chunks[index], getPartFileName(chunks.length, index));
+  };
+
+  const handleDownloadAll = () => {
     const chunks = buildChunks();
     if (!chunks.length) return;
-    const safeName = fileName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'split_text';
-
     chunks.forEach((chunk, i) => {
-      const blob = new Blob([chunk], { type: 'text/plain' });
-      const dlUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = dlUrl;
-      a.download = chunks.length === 1
-        ? `${safeName}.txt`
-        : `${safeName}_part${i + 1}_of_${chunks.length}.txt`;
-      a.click();
-      URL.revokeObjectURL(dlUrl);
+      setTimeout(() => {
+        downloadBlob(chunk, getPartFileName(chunks.length, i));
+      }, i * 300);
     });
   };
 
@@ -139,34 +157,48 @@ export default function TextSplitter() {
         />
       </div>
 
-      {/* Stats + actions bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-xs text-gray-400">
-          <span>{charCount.toLocaleString()} characters</span>
-          {charCount > 0 && (
-            <span>
-              {numParts} {numParts === 1 ? 'file' : 'files'} @ 49k max each
-            </span>
-          )}
-        </div>
+      {/* Stats */}
+      <div className="flex items-center gap-4 text-xs text-gray-400">
+        <span>{charCount.toLocaleString()} characters</span>
+        {charCount > 0 && (
+          <span>
+            {numParts} {numParts === 1 ? 'file' : 'files'} @ 49k max each
+          </span>
+        )}
+      </div>
 
-        <div className="flex items-center gap-2">
-          {text.length > 0 && (
+      {/* Per-part download buttons */}
+      {numParts > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: numParts }, (_, i) => (
             <button
-              onClick={handleClear}
-              className="text-xs bg-gray-700 text-gray-300 px-3 py-1.5 rounded hover:bg-gray-600"
+              key={i}
+              onClick={() => handleDownloadPart(i)}
+              className="text-xs bg-[#1a1f2e] border border-[#e0ddaa]/40 text-[#e0ddaa] px-3 py-1.5 rounded hover:bg-[#e0ddaa]/10"
             >
-              Clear
+              Part {i + 1}
             </button>
-          )}
-          <button
-            onClick={handleDownload}
-            disabled={!text.trim()}
-            className="text-sm bg-[#e0ddaa] text-[#141e27] px-5 py-1.5 rounded font-medium hover:bg-[#d4d19e] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Download .txt{numParts > 1 ? ` (${numParts} files)` : ''}
-          </button>
+          ))}
         </div>
+      )}
+
+      {/* Actions bar */}
+      <div className="flex items-center justify-end gap-2">
+        {text.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="text-xs bg-gray-700 text-gray-300 px-3 py-1.5 rounded hover:bg-gray-600"
+          >
+            Clear
+          </button>
+        )}
+        <button
+          onClick={handleDownloadAll}
+          disabled={!text.trim()}
+          className="text-sm bg-[#e0ddaa] text-[#141e27] px-5 py-1.5 rounded font-medium hover:bg-[#d4d19e] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {numParts > 1 ? `Download All ${numParts} Parts` : 'Download .txt'}
+        </button>
       </div>
     </div>
   );
