@@ -1,6 +1,36 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 
 const CHAR_LIMIT = 49000;
+
+function buildChunks(text) {
+  if (!text.trim()) return [];
+  const chunks = [];
+  let current = '';
+
+  const lines = text.split('\n');
+  for (const line of lines) {
+    // If a single line exceeds the limit, split it on spaces
+    if (line.length > CHAR_LIMIT) {
+      if (current) { chunks.push(current); current = ''; }
+      const words = line.split(' ');
+      for (const word of words) {
+        if (current.length + word.length + 1 > CHAR_LIMIT && current.length > 0) {
+          chunks.push(current);
+          current = word;
+        } else {
+          current += (current ? ' ' : '') + word;
+        }
+      }
+    } else if (current.length + line.length + 1 > CHAR_LIMIT && current.length > 0) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current += (current ? '\n' : '') + line;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
 
 export default function TextSplitter() {
   const [text, setText] = useState('');
@@ -8,25 +38,8 @@ export default function TextSplitter() {
   const textareaRef = useRef(null);
 
   const charCount = text.length;
-  const numParts = charCount > 0 ? Math.ceil(charCount / CHAR_LIMIT) : 0;
-
-  const buildChunks = () => {
-    if (!text.trim()) return [];
-    const lines = text.split('\n');
-    const chunks = [];
-    let current = '';
-
-    for (const line of lines) {
-      if (current.length + line.length + 1 > CHAR_LIMIT && current.length > 0) {
-        chunks.push(current);
-        current = line;
-      } else {
-        current += (current ? '\n' : '') + line;
-      }
-    }
-    if (current) chunks.push(current);
-    return chunks;
-  };
+  const chunks = useMemo(() => buildChunks(text), [text]);
+  const numParts = chunks.length;
 
   const getSafeName = () =>
     fileName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'split_text';
@@ -52,13 +65,11 @@ export default function TextSplitter() {
   };
 
   const handleDownloadPart = (index) => {
-    const chunks = buildChunks();
     if (!chunks[index]) return;
     downloadBlob(chunks[index], getPartFileName(chunks.length, index));
   };
 
   const handleDownloadAll = () => {
-    const chunks = buildChunks();
     if (!chunks.length) return;
     chunks.forEach((chunk, i) => {
       setTimeout(() => {
